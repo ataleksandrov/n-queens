@@ -78,24 +78,22 @@ func solveNqueens(board Board) {
 			col = getColWithMaxConf(board)
 			newRow = getRowWithMinConf(col, board[col])
 
-			if findConflictsToCell(col, board[col]).conf >= findConflictsToCell(col, newRow).conf {
-				rows[board[col]]--
-				rows[newRow]++
+			rows[board[col]]--
+			rows[newRow]++
 
-				d1, d2 := getDiags(col, board[col])
-				primaryDiags[d1]--
-				secondaryDiags[d2]--
+			d1, d2 := getDiags(col, board[col])
+			primaryDiags[d1]--
+			secondaryDiags[d2]--
 
-				d1, d2 = getDiags(col, newRow)
-				primaryDiags[d1]++
-				secondaryDiags[d2]++
+			d1, d2 = getDiags(col, newRow)
+			primaryDiags[d1]++
+			secondaryDiags[d2]++
 
-				board[col] = newRow
+			board[col] = newRow
 
-				if !hasConflict(board) {
-					//printSolution(board)
-					return
-				}
+			if !hasConflict(board) {
+				//printSolution(board)
+				return
 			}
 
 		}
@@ -123,7 +121,7 @@ func printSolution(board Board) {
 
 func getColWithMaxConf(board Board) int {
 	cells := findAllConflicts(board)
-	sort.SliceStable(cells, func(i, j int) bool {
+	sort.Slice(cells, func(i, j int) bool {
 		return cells[i].conf > cells[j].conf
 	})
 
@@ -141,8 +139,8 @@ func hasConflict(board Board) bool {
 	return false
 }
 
-func findAllConflicts(board Board) []*cell {
-	cells := make([]*cell, n)
+func findAllConflicts(board Board) []cell {
+	cells := make([]cell, n)
 	for col := 0; col < n; col++ {
 		cells[col] = findConflictsToCell(col, board[col])
 	}
@@ -151,36 +149,30 @@ func findAllConflicts(board Board) []*cell {
 }
 
 func getRowWithMinConf(col, row int) int {
-	cells := make([]*cell, 0)
+	cells := make([]cell, n)
 	for i := 0; i < n; i++ {
-		if i == row {
-			continue
-		}
-		cells = append(cells, findConflictsToCell(col, i))
+		cells[i] = findConflictsToCell(col, i)
 	}
 
-	sort.SliceStable(cells, func(i, j int) bool {
+	sort.Slice(cells, func(i, j int) bool {
 		return cells[i].conf < cells[j].conf
 	})
 
 	return getRandomCellWithConfs(cells[0].conf, cells).row
 }
 
-func findConflictsToCell(col, row int) *cell {
+func findConflictsToCell(col, row int) cell {
 	d1, d2 := getDiags(col, row)
 	confs := 0
-	isQueen := board[col] == row
 
-	if (isQueen && rows[row] > 1) || (!isQueen && rows[row] > 0) {
-		confs++
+	confs += rows[row]
+	confs += primaryDiags[d1]
+	confs += secondaryDiags[d2]
+
+	if board[col] == row {
+		confs -= 3
 	}
-	if (isQueen && primaryDiags[d1] > 1) || (!isQueen && primaryDiags[d1] > 0) {
-		confs++
-	}
-	if (isQueen && secondaryDiags[d2] > 1) || (!isQueen && secondaryDiags[d2] > 0) {
-		confs++
-	}
-	return &cell{
+	return cell{
 		col:      col,
 		row:      row,
 		conf:     confs,
@@ -190,7 +182,7 @@ func findConflictsToCell(col, row int) *cell {
 	}
 }
 
-func getRandomCellWithConfs(conf int, cells []*cell) *cell {
+func getRandomCellWithConfs(conf int, cells []cell) cell {
 	cnt := 0
 	for i := 0; i < len(cells); i++ {
 		if cells[i].conf == conf {
