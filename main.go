@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	MAX_ITER       int
 	n              int
 	rows           []int
 	primaryDiags   []int
@@ -22,8 +21,6 @@ type cell struct {
 	col, row, conf, rConf, primConf, secCOnf int
 }
 
-type cells []cell
-
 func main() {
 	//fmt.Println("Enter N:")
 	//if _, e := fmt.Scanf("%d", &n); e != nil {
@@ -33,10 +30,9 @@ func main() {
 	n = 10000
 	board = createBoard(n)
 	initRowDiags(board)
-
-	MAX_ITER = 3 * n
 	start := time.Now()
-	solveNqueens(board)
+
+	solveNqueens(board, 3*n)
 	end := time.Now()
 	fmt.Println(end.Sub(start))
 }
@@ -49,43 +45,36 @@ func initRowDiags(board Board) {
 	rows = make([]int, n)
 	primaryDiags = make([]int, 2*n-1)
 	secondaryDiags = make([]int, 2*n-1)
-	for i, q := range board {
-		d1, d2 := getDiags(i, q)
-		primaryDiags[d1]++
-		secondaryDiags[d2]++
-		rows[q]++
+	for i := 0; i < n; i++ {
+		primaryDiags[i-board[i]+n-1]++
+		secondaryDiags[i+board[i]]++
+		rows[board[i]]++
 	}
 }
 
-func getDiags(col, row int) (int, int) {
-	return col - row + n - 1, row + col
-}
-
-func solveNqueens(board Board) {
+func solveNqueens(board Board, maxIter int) {
 	var (
-		col, newRow, d1, d2 int
+		col, newRow int
 	)
 
 	for {
-		for i := 0; i < MAX_ITER; i++ {
+		for i := 0; i < maxIter; i++ {
 			col = getColWithMaxConf(board)
 			newRow = getRowWithMinConf(col)
 
 			rows[board[col]]--
 			rows[newRow]++
 
-			d1, d2 = getDiags(col, board[col])
-			primaryDiags[d1]--
-			secondaryDiags[d2]--
+			primaryDiags[col-board[col]+n-1]--
+			secondaryDiags[col+board[col]]--
 
-			d1, d2 = getDiags(col, newRow)
-			primaryDiags[d1]++
-			secondaryDiags[d2]++
+			primaryDiags[col-newRow+n-1]++
+			secondaryDiags[col+newRow]++
 
 			board[col] = newRow
 
 			if !hasConflict(board) {
-				//printSolution(board)
+				// printSolution(board)
 				return
 			}
 
@@ -101,7 +90,7 @@ func printSolution(board Board) {
 	for j := 0; j < n; j++ {
 		for _, v := range board {
 			if v == j {
-				fmt.Print("Q")
+				fmt.Print("*")
 			} else {
 				fmt.Print("_")
 			}
@@ -112,17 +101,18 @@ func printSolution(board Board) {
 }
 
 func getColWithMaxConf(board Board) int {
-	c := findAllConflicts(board)
-	var cs cells
+	var cs []cell
+	var c cell
 	max := math.MinInt32
 	for i := 0; i < n; i++ {
-		if c[i].conf > max {
-			max = c[i].conf
-			cs = cells{}
-			cs = append(cs, c[i])
+		c = findConflictsToCell(i, board[i])
+		if c.conf > max {
+			max = c.conf
+			cs = cs[:0]
+			cs = append(cs, c)
 		}
-		if c[i].conf == max {
-			cs = append(cs, c[i])
+		if c.conf == max {
+			cs = append(cs, c)
 		}
 	}
 
@@ -130,8 +120,9 @@ func getColWithMaxConf(board Board) int {
 }
 
 func hasConflict(board Board) bool {
-	cells := findAllConflicts(board)
-	for _, c := range cells {
+	var c cell
+	for col := 0; col < n; col++ {
+		c = findConflictsToCell(col, board[col])
 		if c.rConf > 1 || c.primConf > 1 || c.secCOnf > 1 {
 			return true
 		}
@@ -140,24 +131,15 @@ func hasConflict(board Board) bool {
 	return false
 }
 
-func findAllConflicts(board Board) cells {
-	cells := make(cells, n)
-	for col := 0; col < n; col++ {
-		cells[col] = findConflictsToCell(col, board[col])
-	}
-
-	return cells
-}
-
 func getRowWithMinConf(col int) int {
 	var c cell
 	min := math.MaxInt32
-	cs := cells{}
+	cs := make([]cell, 0)
 	for i := 0; i < n; i++ {
 		c = findConflictsToCell(col, i)
 		if c.conf < min {
 			min = c.conf
-			cs = cells{}
+			cs = cs[:0]
 			cs = append(cs, c)
 		}
 		if c.conf == min {
@@ -169,7 +151,7 @@ func getRowWithMinConf(col int) int {
 }
 
 func findConflictsToCell(col, row int) cell {
-	d1, d2 := getDiags(col, row)
+	d1, d2 := col-row+n-1, col+row
 	confs := 0
 
 	confs += rows[row]
@@ -187,16 +169,4 @@ func findConflictsToCell(col, row int) cell {
 		primConf: primaryDiags[d1],
 		secCOnf:  secondaryDiags[d2],
 	}
-}
-
-func getRandomCellWithConfs(conf int, cells cells) cell {
-	cnt := 0
-	for i := 0; i < len(cells); i++ {
-		if cells[i].conf == conf {
-			cnt++
-		} else {
-			break
-		}
-	}
-	return cells[rand.Intn(cnt)]
 }
