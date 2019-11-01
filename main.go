@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
-	"sort"
 	"time"
 )
 
@@ -21,6 +21,8 @@ type Board []int
 type cell struct {
 	col, row, conf, rConf, primConf, secCOnf int
 }
+
+type cells []cell
 
 func main() {
 	//fmt.Println("Enter N:")
@@ -40,14 +42,7 @@ func main() {
 }
 
 func createBoard(n int) Board {
-	board := make([]int, n)
-	for i := 0; i < n; i++ {
-		board[i] = i
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(n, func(i, j int) { board[i], board[j] = board[j], board[i] })
-	return board
+	return rand.Perm(n)
 }
 
 func initRowDiags(board Board) {
@@ -63,25 +58,23 @@ func initRowDiags(board Board) {
 }
 
 func getDiags(col, row int) (int, int) {
-	d1 := col - row + n - 1
-	d2 := row + col
-	return d1, d2
+	return col - row + n - 1, row + col
 }
 
 func solveNqueens(board Board) {
 	var (
-		col, newRow int
+		col, newRow, d1, d2 int
 	)
 
 	for {
 		for i := 0; i < MAX_ITER; i++ {
 			col = getColWithMaxConf(board)
-			newRow = getRowWithMinConf(col, board[col])
+			newRow = getRowWithMinConf(col)
 
 			rows[board[col]]--
 			rows[newRow]++
 
-			d1, d2 := getDiags(col, board[col])
+			d1, d2 = getDiags(col, board[col])
 			primaryDiags[d1]--
 			secondaryDiags[d2]--
 
@@ -99,7 +92,6 @@ func solveNqueens(board Board) {
 		}
 		if hasConflict(board) {
 			board = createBoard(n)
-			//fmt.Println("Reset to", board)
 			initRowDiags(board)
 		}
 	}
@@ -120,12 +112,21 @@ func printSolution(board Board) {
 }
 
 func getColWithMaxConf(board Board) int {
-	cells := findAllConflicts(board)
-	sort.Slice(cells, func(i, j int) bool {
-		return cells[i].conf > cells[j].conf
-	})
+	c := findAllConflicts(board)
+	var cs cells
+	max := math.MinInt32
+	for i := 0; i < n; i++ {
+		if c[i].conf > max {
+			max = c[i].conf
+			cs = cells{}
+			cs = append(cs, c[i])
+		}
+		if c[i].conf == max {
+			cs = append(cs, c[i])
+		}
+	}
 
-	return getRandomCellWithConfs(cells[0].conf, cells).col
+	return cs[rand.Intn(len(cs))].col
 }
 
 func hasConflict(board Board) bool {
@@ -139,8 +140,8 @@ func hasConflict(board Board) bool {
 	return false
 }
 
-func findAllConflicts(board Board) []cell {
-	cells := make([]cell, n)
+func findAllConflicts(board Board) cells {
+	cells := make(cells, n)
 	for col := 0; col < n; col++ {
 		cells[col] = findConflictsToCell(col, board[col])
 	}
@@ -148,17 +149,23 @@ func findAllConflicts(board Board) []cell {
 	return cells
 }
 
-func getRowWithMinConf(col, row int) int {
-	cells := make([]cell, n)
+func getRowWithMinConf(col int) int {
+	var c cell
+	min := math.MaxInt32
+	cs := cells{}
 	for i := 0; i < n; i++ {
-		cells[i] = findConflictsToCell(col, i)
+		c = findConflictsToCell(col, i)
+		if c.conf < min {
+			min = c.conf
+			cs = cells{}
+			cs = append(cs, c)
+		}
+		if c.conf == min {
+			cs = append(cs, c)
+		}
 	}
 
-	sort.Slice(cells, func(i, j int) bool {
-		return cells[i].conf < cells[j].conf
-	})
-
-	return getRandomCellWithConfs(cells[0].conf, cells).row
+	return cs[rand.Intn(len(cs))].row
 }
 
 func findConflictsToCell(col, row int) cell {
@@ -182,7 +189,7 @@ func findConflictsToCell(col, row int) cell {
 	}
 }
 
-func getRandomCellWithConfs(conf int, cells []cell) cell {
+func getRandomCellWithConfs(conf int, cells cells) cell {
 	cnt := 0
 	for i := 0; i < len(cells); i++ {
 		if cells[i].conf == conf {
@@ -191,6 +198,5 @@ func getRandomCellWithConfs(conf int, cells []cell) cell {
 			break
 		}
 	}
-	index := rand.Intn(cnt)
-	return cells[index]
+	return cells[rand.Intn(cnt)]
 }
